@@ -37,6 +37,8 @@ Param(
   [String] $HealthCheckPort = "8091"
 )
 
+Import-Module P3RemoteAccess
+
 #Based on:
 # * https://s3.amazonaws.com/app-chemistry/scripts/configure-rdsh.ps1
 

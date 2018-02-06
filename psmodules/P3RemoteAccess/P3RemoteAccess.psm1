@@ -59,3 +59,97 @@ function global:Update-RDMS {
     }
     End{}
 }
+
+function global:Retry-TestCommand
+{
+    param (
+    [Parameter(Mandatory=$true)][string]$Test,
+    [Parameter(Mandatory=$false)][hashtable]$Args = @{},
+    [Parameter(Mandatory=$false)][string]$TestProperty,
+    [Parameter(Mandatory=$false)][int]$Tries = 5,
+    [Parameter(Mandatory=$false)][int]$SecondsDelay = 2,
+    [Parameter(Mandatory=$false)][switch]$ExpectNull
+    )
+    $TryCount = 0
+    $Completed = $false
+    $MsgFailed = "Command [{0}] failed" -f $Test
+    $MsgSucceeded = "Command [{0}] succeeded." -f $Test
+
+    while (-not $Completed)
+    {
+        try
+        {
+            $Result = & $Test @Args
+            $TestResult = if ($TestProperty) { $Result.$TestProperty } else { $Result }
+            if (-not $TestResult -and -not $ExpectNull)
+            {
+                throw $MsgFailed
+            }
+            else
+            {
+                Write-Verbose $MsgSucceeded
+                Write-Output $TestResult
+                $Completed = $true
+            }
+        }
+        catch
+        {
+            $TryCount++
+            if ($TryCount -ge $Tries)
+            {
+                $Completed = $true
+                Write-Output $null
+                Write-Warning ($PSItem | Select -Property * | Out-String)
+                Write-Warning ("Command [{0}] failed the maximum number of {1} time(s)." -f $Test, $Tries)
+                $PSCmdlet.ThrowTerminatingError($PSItem)
+            }
+            else
+            {
+                $Msg = $PSItem.ToString()
+                if ($Msg -ne $MsgFailed) { Write-Warning $Msg }
+                Write-Warning ("Command [{0}] failed. Retrying in {1} second(s)." -f $Test, $SecondsDelay)
+                Start-Sleep $SecondsDelay
+            }
+        }
+    }
+}
+
+function global:Download-File
+{
+    param (
+    [Parameter(Mandatory=$true)]
+    [string]$Source,
+
+    [Parameter(Mandatory=$true)]
+    [string]$Destination,
+
+    [Parameter(Mandatory=$false)]
+    [ValidateSet("Ssl3","SystemDefault","Tls","Tls11","Tls12")]
+    [string]$SecurityProtocol = "Tls12"
+    )
+    Write-Verbose "Downloading file --"
+    Write-Verbose "    Source = ${Source}"
+    Write-Verbose "    Destination = ${Destination}"
+    try
+    {
+        Write-Verbose "Attempting to retrieve file using .NET method..."
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::$SecurityProtocol
+        (New-Object Net.WebClient).DownloadFile("${Source}","${Destination}")
+        Write-Output (Get-ChildItem "$Destination")
+    }
+    catch
+    {
+        try
+        {
+            Write-Verbose $PSItem.ToString()
+            Write-Verbose ".NET method failed, attempting BITS transfer method..."
+            Start-BitsTransfer -Source "${Source}" -Destination "${Destination}"
+            Write-Output (Get-ChildItem "$Destination")
+        }
+        catch
+        {
+            Write-Verbose $PSItem.ToString()
+            $PSCmdlet.ThrowTerminatingError($PSitem)
+        }
+    }
+}

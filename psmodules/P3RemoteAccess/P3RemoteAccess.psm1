@@ -1,4 +1,4 @@
-function global:Update-RDMS {
+function Update-RDMS {
     # Credit https://rcmtech.wordpress.com/2015/08/20/powershell-script-to-update-rdms-server-list/
     Begin{}
     Process{
@@ -60,7 +60,7 @@ function global:Update-RDMS {
     End{}
 }
 
-function global:Retry-TestCommand
+function Retry-TestCommand
 {
     param (
     [Parameter(Mandatory=$true)][string]$Test,
@@ -114,7 +114,7 @@ function global:Retry-TestCommand
     }
 }
 
-function global:Download-File
+function Download-File
 {
     param (
     [Parameter(Mandatory=$true)]
@@ -153,3 +153,7 @@ function global:Download-File
         }
     }
 }
+
+export-modulemember -function Update-RDMS
+export-modulemember -function Retry-TestCommand
+export-modulemember -function Download-File
